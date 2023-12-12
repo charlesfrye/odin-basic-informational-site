@@ -1,37 +1,44 @@
-const fs = require("fs");
-const http = require("http");
-
-const Files = {
-  INDEX: "index.html",
-  NOT_FOUND: "404.html",
-  ABOUT: "about.html",
-  CONTACT: "contact-me.html",
-};
-
-function respondWithFile(res, file) {
-  res.writeHead(200, { "Content-Type": "text/html" });
-  fs.readFile(file, function (err, data) {
-    if (err) throw err;
-    res.end(data);
-  });
+const express = require("express");
+const path = require("path");
+// MIDDLEWARE
+// logging with morgan
+const logger = require("morgan");
+// compress all responses
+const compression = require("compression");
+// allow CORS
+const cors = require("cors");
+// add some security middleware
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+// 404 handler
+function handle404(req, res, next) {
+  res.status(404).sendFile(path.join(__dirname, "public", "404.html"));
 }
 
-http
-  .createServer(function (req, res) {
-    // determine the URL
-    const url = req.url;
-    // map the URL to a target
-    let target = url === "/" ? "index" : url.substring(1);
-    target = target.endsWith(".html") ? target : target + ".html";
-    // map the target to a file
-    switch (target) {
-      case Files.INDEX:
-      case Files.ABOUT:
-      case Files.CONTACT:
-        respondWithFile(res, target);
-        break;
-      default:
-        respondWithFile(res, Files.NOT_FOUND);
-    }
+const app = express();
+const port = 3000;
+
+app.use(helmet());
+
+// CORS configuration
+const corsOptions = {
+  origin: "*", // Allow all origins
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Allow common methods
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+
+app.use(compression());
+app.use(logger("dev"));
+
+app.use(
+  express.static("public", {
+    extensions: ["html", "htm"],
   })
-  .listen(8080);
+);
+app.use(handle404);
+
+app.listen(port, () => {
+  console.log(`Example app listening at http://localhost:${port}`);
+});
